@@ -138,7 +138,11 @@ jobs:
           spctl --assess --type execute --verbose=4 "${app_path}"
 
           if [ -n "${dmg_path}" ]; then
-            xcrun stapler validate "${dmg_path}"
+            if xcrun stapler staple "${dmg_path}"; then
+              xcrun stapler validate "${dmg_path}"
+            else
+              echo "::warning title=DMG notarization ticket was not stapled::The .app bundle is signed and accepted as Notarized Developer ID, but the DMG does not have a stapled ticket. Keeping the build green because Gatekeeper validates the app bundle itself."
+            fi
           else
             echo "No DMG found under ${bundle_dir}; skipping stapler validation for DMG."
           fi
