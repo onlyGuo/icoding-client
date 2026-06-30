@@ -24,6 +24,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Validate tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          cargo_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "icoding-client") | .version')"
+          tauri_version="$(jq -r '.version' tauri.conf.json)"
+          expected_tag="v${cargo_version}"
+          if [ "${cargo_version}" != "${tauri_version}" ]; then
+            echo "Cargo version (${cargo_version}) and Tauri version (${tauri_version}) do not match." >&2
+            exit 1
+          fi
+          if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package version ${expected_tag}." >&2
+            echo "Create tag ${expected_tag}, or update Cargo.toml and tauri.conf.json before tagging." >&2
+            exit 1
+          fi
+
       - name: Run tests
         run: cargo test --locked
 
@@ -59,7 +76,75 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Import Apple signing certificate
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [ -z "${APPLE_CERTIFICATE}" ] || [ -z "${APPLE_CERTIFICATE_PASSWORD}" ] || [ -z "${KEYCHAIN_PASSWORD}" ]; then
+            echo "Missing one or more required macOS signing secrets: APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, KEYCHAIN_PASSWORD." >&2
+            exit 1
+          fi
+
+          certificate_path="${RUNNER_TEMP}/developer-id.p12"
+          keychain_path="${RUNNER_TEMP}/build.keychain-db"
+
+          printf '%s' "${APPLE_CERTIFICATE}" | base64 --decode > "${certificate_path}"
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${keychain_path}"
+          security set-keychain-settings -lut 21600 "${keychain_path}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${keychain_path}"
+          security import "${certificate_path}" -P "${APPLE_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "${keychain_path}"
+          security list-keychains -d user -s "${keychain_path}" login.keychain-db
+          security default-keychain -s "${keychain_path}"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${keychain_path}"
+
+          identity="$(security find-identity -v -p codesigning "${keychain_path}" | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "${identity}" ]; then
+            echo "Developer ID Application identity was not found after importing the certificate." >&2
+            security find-identity -v -p codesigning "${keychain_path}" >&2
+            exit 1
+          fi
+          echo "APPLE_SIGNING_IDENTITY=${identity}" >> "${GITHUB_ENV}"
+
+      - name: Build signed and notarized Tauri package
+        if: runner.os == 'macOS'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          args: --target ${{ matrix.target }}
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: icoding-client-[platform]-[arch]-[bundle]
+
+      - name: Verify macOS signature and notarization
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          bundle_dir="target/${{ matrix.target }}/release/bundle"
+          app_path="$(find "${bundle_dir}" -maxdepth 4 -type d -name '*.app' -print -quit)"
+          dmg_path="$(find "${bundle_dir}" -maxdepth 4 -type f -name '*.dmg' -print -quit)"
+
+          if [ -z "${app_path}" ]; then
+            echo "Could not find built .app under ${bundle_dir}." >&2
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "${app_path}"
+          spctl --assess --type execute --verbose=4 "${app_path}"
+
+          if [ -n "${dmg_path}" ]; then
+            xcrun stapler validate "${dmg_path}"
+          else
+            echo "No DMG found under ${bundle_dir}; skipping stapler validation for DMG."
+          fi
+
       - name: Build Tauri package
+        if: runner.os != 'macOS'
         uses: tauri-apps/tauri-action@v1
         with:
           args: --target ${{ matrix.target }}
@@ -89,3 +174,45 @@ jobs:
           name: icoding-client-linux-x86_64
           path: icoding-client-linux-x86_64.tar.gz
           if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - desktop
+      - linux
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          mkdir -p release-assets
+          find release-artifacts -type f \
+            \( -name '*.dmg' -o -name '*.msi' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.tar.gz' -o -name '*.zip' \) \
+            -print0 | while IFS= read -r -d '' file; do
+              cp "${file}" "release-assets/$(basename "${file}")"
+            done
+
+          asset_count="$(find release-assets -type f | wc -l | tr -d ' ')"
+          if [ "${asset_count}" = "0" ]; then
+            echo "No release assets were found in downloaded workflow artifacts." >&2
+            find release-artifacts -maxdepth 4 -type f >&2
+            exit 1
+          fi
+
+          if ! gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release create "${TAG_NAME}" --title "${TAG_NAME}" --generate-notes
+          fi
+
+          gh release upload "${TAG_NAME}" release-assets/* --clobber

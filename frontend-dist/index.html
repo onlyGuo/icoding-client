@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,7 +17,7 @@
             <img class="logo-icon" src="./icon.png" alt="iCoding Client" />
             <div class="logo-text">
               <h1>iCoding Client</h1>
-              <span id="connectionLabel" class="connection-status">正在读取状态</span>
+              <span id="connectionLabel" class="connection-status" data-i18n="status.loading">Loading status</span>
             </div>
           </div>
         </div>
@@ -25,27 +25,27 @@
         <div class="sidebar-content">
           <div class="status-card">
             <div class="status-item">
-              <span class="status-label">账号</span>
+              <span class="status-label" data-i18n="label.account">Account</span>
               <span id="accountValue" class="status-value">-</span>
             </div>
             <div class="status-item">
-              <span class="status-label">设备</span>
+              <span class="status-label" data-i18n="label.device">Device</span>
               <span id="deviceValue" class="status-value">-</span>
             </div>
             <div class="status-item">
-              <span class="status-label">Agent</span>
+              <span class="status-label" data-i18n="label.agent">Agent</span>
               <span id="agentValue" class="status-value">-</span>
             </div>
             <div class="status-item">
-              <span class="status-label">自启</span>
+              <span class="status-label" data-i18n="label.autostart">Autostart</span>
               <span id="autostartValue" class="status-value">-</span>
             </div>
             <div class="status-item">
-              <span class="status-label">命令权限</span>
+              <span class="status-label" data-i18n="label.commandPermission">Command Access</span>
               <span id="shellValue" class="status-value">-</span>
             </div>
             <div class="status-item">
-              <span class="status-label">磁盘权限</span>
+              <span class="status-label" data-i18n="label.diskPermission">Disk Access</span>
               <span id="diskAccessValue" class="status-value">-</span>
             </div>
           </div>
@@ -57,75 +57,75 @@
 
         <section id="loginPanel" class="panel hidden">
           <div class="panel-header">
-            <h2>登录云端账号</h2>
-            <p>使用邮箱或手机号验证码登录，登录后客户端会注册当前设备并连接云端。</p>
+            <h2 data-i18n="login.title">Sign in to your cloud account</h2>
+            <p data-i18n="login.description">Sign in with an email or mobile verification code. The client will register this device and connect to the cloud.</p>
           </div>
 
           <div class="login-method">
             <div class="method-tabs">
-              <button id="emailMode" class="method-tab active" type="button">邮箱</button>
-              <button id="mobileMode" class="method-tab" type="button">手机</button>
+              <button id="emailMode" class="method-tab active" type="button" data-i18n="login.email">Email</button>
+              <button id="mobileMode" class="method-tab" type="button" data-i18n="login.mobile">Mobile</button>
             </div>
           </div>
 
           <div class="form-group">
-            <label id="targetLabel" class="form-label">邮箱地址</label>
+            <label id="targetLabel" class="form-label">Email address</label>
             <input id="targetInput" class="form-input" autocomplete="username" placeholder="test@example.com" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">验证码</label>
+            <label class="form-label" data-i18n="login.code">Verification code</label>
             <div class="code-input-group">
               <input id="codeInput" class="form-input" autocomplete="one-time-code" placeholder="123456" />
-              <button id="sendCodeBtn" class="btn btn-secondary" type="button">发送验证码</button>
+              <button id="sendCodeBtn" class="btn btn-secondary" type="button" data-i18n="login.sendCode">Send code</button>
             </div>
           </div>
 
-          <button id="loginBtn" class="btn btn-primary btn-block" type="button">登录并连接</button>
+          <button id="loginBtn" class="btn btn-primary btn-block" type="button" data-i18n="login.connect">Sign in and connect</button>
         </section>
 
         <section id="statusPanel" class="panel hidden">
           <div class="panel-header">
-            <h2>客户端状态</h2>
-            <p>当前设备已登录，可以接收云端智能体任务。</p>
+            <h2 data-i18n="client.title">Client status</h2>
+            <p data-i18n="client.description">This device is signed in and can receive cloud agent tasks.</p>
           </div>
 
           <div class="settings-grid">
             <div class="form-group">
-              <label class="form-label">API 地址</label>
+              <label class="form-label" data-i18n="server.api">API URL</label>
               <input id="apiBaseUrl" class="form-input" />
             </div>
             <div class="form-group">
-              <label class="form-label">WebSocket 地址</label>
+              <label class="form-label" data-i18n="server.ws">WebSocket URL</label>
               <input id="wsUrl" class="form-input" />
             </div>
           </div>
 
           <div class="action-buttons">
-            <button id="saveServerBtn" class="btn btn-secondary" type="button">保存服务地址</button>
-            <button id="startAgentBtn" class="btn btn-primary" type="button">启动连接</button>
-            <button id="logoutBtn" class="btn btn-danger" type="button">退出登录</button>
+            <button id="saveServerBtn" class="btn btn-secondary" type="button" data-i18n="server.save">Save server URLs</button>
+            <button id="startAgentBtn" class="btn btn-primary" type="button" data-i18n="client.start">Start connection</button>
+            <button id="logoutBtn" class="btn btn-danger" type="button" data-i18n="login.logout">Log out</button>
           </div>
 
           <div id="permissionBox" class="permission-card hidden">
             <div class="permission-header">
-              <h3>启动权限未完成</h3>
-              <p id="permissionDetail">
-                Agent 会在完整磁盘访问授权完成前保持停止，避免执行任务途中再次申请权限。
+              <h3 data-i18n="permission.title">Startup permission required</h3>
+              <p id="permissionDetail" data-i18n="permission.description">
+                The agent remains stopped until Full Disk Access is granted, preventing permission prompts during a task.
               </p>
             </div>
             <button id="requestDiskAccessBtn" class="btn btn-primary" type="button">
-              打开完整磁盘访问设置
+              <span data-i18n="permission.open">Open Full Disk Access settings</span>
             </button>
           </div>
 
           <div class="policy-card">
             <div class="policy-header">
-              <h3>权限策略</h3>
+              <h3 data-i18n="policy.title">Permission policy</h3>
             </div>
 
             <div class="form-group">
-              <label class="form-label">允许目录</label>
+              <label class="form-label" data-i18n="policy.roots">Allowed directories</label>
               <textarea
                 id="allowedRoots"
                 class="form-textarea"
@@ -137,16 +137,16 @@
             <div class="checkbox-group">
               <label class="checkbox-item">
                 <input id="shellExecEnabled" type="checkbox" checked />
-                <span class="checkbox-label">允许执行命令</span>
+                <span class="checkbox-label" data-i18n="policy.allowCommands">Allow command execution</span>
               </label>
             </div>
 
-            <button id="savePolicyBtn" class="btn btn-secondary" type="button">保存权限策略</button>
+            <button id="savePolicyBtn" class="btn btn-secondary" type="button" data-i18n="policy.save">Save permission policy</button>
           </div>
 
           <div class="log-card">
             <div class="log-header">
-              <h3>最近状态</h3>
+              <h3 data-i18n="status.recent">Recent status</h3>
             </div>
             <pre id="statusJson" class="log-content">{}</pre>
           </div>

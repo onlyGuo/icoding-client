@@ -4,6 +4,7 @@ use crate::{
     auth::{AuthClient, LoginTarget, Session, SessionStore, User},
     config::{AppConfig, AppPaths},
     device::{DeviceClient, DeviceRegisterRequest},
+    i18n::Language,
     permissions::{
         full_disk_access_status, open_full_disk_access_settings, require_startup_permissions,
     },
@@ -350,10 +351,35 @@ fn stop_agent(state: &DesktopState) -> Result<()> {
 }
 
 fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
-    let open = MenuItem::with_id(app, "open", "打开窗口", true, None::<&str>)?;
-    let status = MenuItem::with_id(app, "status", "状态：运行中", false, None::<&str>)?;
-    let logout = MenuItem::with_id(app, "logout", "退出登录", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "退出程序", true, None::<&str>)?;
+    let language = Language::detect();
+    let open = MenuItem::with_id(
+        app,
+        "open",
+        language.select("Open Window", "打开窗口"),
+        true,
+        None::<&str>,
+    )?;
+    let status = MenuItem::with_id(
+        app,
+        "status",
+        language.select("Status: Running", "状态：运行中"),
+        false,
+        None::<&str>,
+    )?;
+    let logout = MenuItem::with_id(
+        app,
+        "logout",
+        language.select("Log Out", "退出登录"),
+        true,
+        None::<&str>,
+    )?;
+    let quit = MenuItem::with_id(
+        app,
+        "quit",
+        language.select("Quit", "退出程序"),
+        true,
+        None::<&str>,
+    )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&open, &status, &separator, &logout, &quit])?;
 

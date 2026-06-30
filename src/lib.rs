@@ -5,6 +5,7 @@ pub mod config;
 pub mod desktop;
 pub mod device;
 pub mod error;
+pub mod i18n;
 pub mod permissions;
 pub mod policy;
 pub mod protocol;

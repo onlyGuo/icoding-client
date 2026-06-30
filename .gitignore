@@ -3,3 +3,8 @@
 .icoding-*/
 /gen
 .idea/
+*.certSigningRequest
+*.p12
+*.cer
+apple-certificate.base64.txt
+apple-signing-secrets.txt

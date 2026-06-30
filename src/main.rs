@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{Arg, ArgAction, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 use icoding_client::{
     auth::{AuthClient, LoginTarget, Session, SessionStore},
     capabilities::CapabilityDispatcher,
     config::{AppConfig, AppPaths},
     device::{DeviceClient, DeviceRegisterRequest},
+    i18n::Language,
     ws::AgentWsClient,
 };
 use serde_json::json;
@@ -100,7 +101,8 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    let cli = Cli::parse();
+    let language = Language::detect();
+    let cli = parse_cli(language);
     let paths = AppPaths::resolve()?;
     let mut config = AppConfig::load_or_create(&paths)?;
     config.apply_server_override(cli.api_base_url.clone(), cli.ws_url.clone());
@@ -135,7 +137,10 @@ async fn main() -> Result<()> {
             let auth = AuthClient::new(config.server.api_base_url.clone())?;
             auth.initialize_session().await?;
             auth.send_verification_code(&target).await?;
-            println!("verification code sent");
+            println!(
+                "{}",
+                language.select("Verification code sent.", "验证码已发送。")
+            );
         }
         Commands::VerifyCode {
             email,
@@ -157,10 +162,10 @@ async fn main() -> Result<()> {
         }
         Commands::Logout => {
             session_store.clear()?;
-            println!("logged out");
+            println!("{}", language.select("Logged out.", "已退出登录。"));
         }
         Commands::Policy { command } => {
-            handle_policy_command(command, &mut config, &paths)?;
+            handle_policy_command(command, &mut config, &paths, language)?;
         }
         Commands::RegisterDevice => {
             let session = require_session(&session_store)?;
@@ -220,7 +225,7 @@ async fn main() -> Result<()> {
         Commands::Exec { cwd, command } => {
             let command = command.join(" ");
             if command.trim().is_empty() {
-                anyhow::bail!("command is required");
+                anyhow::bail!(language.select("command is required", "必须提供命令"));
             }
             let dispatcher = CapabilityDispatcher::new(config);
             let output = dispatcher
@@ -243,6 +248,7 @@ fn handle_policy_command(
     command: PolicyCommand,
     config: &mut AppConfig,
     paths: &AppPaths,
+    language: Language,
 ) -> Result<()> {
     match command {
         PolicyCommand::Show => {
@@ -258,7 +264,10 @@ fn handle_policy_command(
         }
         PolicyCommand::SetRoots { roots } => {
             if roots.is_empty() {
-                anyhow::bail!("provide at least one root directory");
+                anyhow::bail!(language.select(
+                    "provide at least one root directory",
+                    "请至少提供一个根目录"
+                ));
             }
             config.policy.allowed_roots = canonicalize_roots(roots)?;
             config.save(paths)?;
@@ -276,7 +285,7 @@ fn handle_policy_command(
             let root = canonicalize_root(&root)?;
             config.policy.allowed_roots.retain(|item| item != &root);
             if config.policy.allowed_roots.is_empty() {
-                anyhow::bail!("allowed roots cannot be empty");
+                anyhow::bail!(language.select("allowed roots cannot be empty", "允许目录不能为空"));
             }
             config.save(paths)?;
             print_policy_saved(config)?;
@@ -361,4 +370,139 @@ fn require_session(store: &SessionStore) -> Result<Session> {
 fn print_json(value: &serde_json::Value) -> Result<()> {
     println!("{}", serde_json::to_string_pretty(value)?);
     Ok(())
+}
+
+fn parse_cli(language: Language) -> Cli {
+    let matches = localized_cli_command(language).get_matches();
+    Cli::from_arg_matches(&matches).unwrap_or_else(|error| error.exit())
+}
+
+fn localized_cli_command(language: Language) -> Command {
+    let text = |english, chinese| language.select(english, chinese);
+    let command = Cli::command()
+        .about(text(
+            "Desktop agent client for iCoding",
+            "iCoding 桌面智能体客户端",
+        ))
+        .mut_arg("api_base_url", |arg| {
+            arg.help(text("Override the API base URL", "覆盖 API 基础地址"))
+        })
+        .mut_arg("ws_url", |arg| {
+            arg.help(text("Override the WebSocket URL", "覆盖 WebSocket 地址"))
+        })
+        .mut_arg("save_server", |arg| {
+            arg.help(text("Save server URL overrides", "保存服务器地址覆盖配置"))
+        })
+        .mut_subcommand("desktop", |command| {
+            command.about(text("Start the desktop application", "启动桌面应用"))
+        })
+        .mut_subcommand("config-path", |command| {
+            command.about(text("Show local configuration paths", "显示本地配置路径"))
+        })
+        .mut_subcommand("whoami", |command| {
+            command.about(text("Show the current signed-in user", "显示当前登录用户"))
+        })
+        .mut_subcommand("send-code", |command| {
+            command.about(text("Send a login verification code", "发送登录验证码"))
+        })
+        .mut_subcommand("verify-code", |command| {
+            command.about(text(
+                "Verify a login code and save the session",
+                "验证登录码并保存会话",
+            ))
+        })
+        .mut_subcommand("logout", |command| {
+            command.about(text("Clear the local session", "清除本地登录会话"))
+        })
+        .mut_subcommand("policy", |command| {
+            command
+                .about(text(
+                    "View or update the local policy",
+                    "查看或修改本地策略",
+                ))
+                .mut_subcommand("show", |command| {
+                    command.about(text("Show the current policy", "显示当前策略"))
+                })
+                .mut_subcommand("set-roots", |command| {
+                    command.about(text("Replace allowed roots", "替换允许目录"))
+                })
+                .mut_subcommand("add-root", |command| {
+                    command.about(text("Add an allowed root", "添加允许目录"))
+                })
+                .mut_subcommand("remove-root", |command| {
+                    command.about(text("Remove an allowed root", "移除允许目录"))
+                })
+                .mut_subcommand("shell", |command| {
+                    command.about(text(
+                        "Enable or disable command execution",
+                        "启用或禁用命令执行",
+                    ))
+                })
+        })
+        .mut_subcommand("register-device", |command| {
+            command.about(text("Register this device", "注册当前设备"))
+        })
+        .mut_subcommand("serve", |command| {
+            command.about(text("Run the agent service", "运行智能体服务"))
+        })
+        .mut_subcommand("fs-list", |command| {
+            command.about(text("List a directory", "列出目录内容"))
+        })
+        .mut_subcommand("fs-read", |command| {
+            command.about(text("Read a file", "读取文件"))
+        })
+        .mut_subcommand("exec", |command| {
+            command.about(text("Execute a command", "执行命令"))
+        });
+
+    if language == Language::Chinese {
+        localize_chinese_help(command)
+    } else {
+        command
+    }
+}
+
+fn localize_chinese_help(command: Command) -> Command {
+    let has_subcommands = command.get_subcommands().next().is_some();
+    let template = if has_subcommands {
+        "{about-with-newline}\n用法: {usage}\n\n命令:\n{subcommands}\n\n选项:\n{options}"
+    } else {
+        "{about-with-newline}\n用法: {usage}\n\n参数:\n{positionals}\n\n选项:\n{options}"
+    };
+
+    command
+        .disable_help_subcommand(true)
+        .disable_help_flag(true)
+        .arg(
+            Arg::new("help")
+                .short('h')
+                .long("help")
+                .action(ArgAction::Help)
+                .help("显示帮助"),
+        )
+        .help_template(template)
+        .mut_subcommands(localize_chinese_help)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_help_defaults_to_english() {
+        let help = localized_cli_command(Language::English)
+            .render_long_help()
+            .to_string();
+        assert!(help.contains("Desktop agent client for iCoding"));
+        assert!(help.contains("Start the desktop application"));
+    }
+
+    #[test]
+    fn cli_help_supports_chinese() {
+        let help = localized_cli_command(Language::Chinese)
+            .render_long_help()
+            .to_string();
+        assert!(help.contains("iCoding 桌面智能体客户端"));
+        assert!(help.contains("启动桌面应用"));
+    }
 }

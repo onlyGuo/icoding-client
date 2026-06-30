@@ -1,5 +1,128 @@
 const invoke = window.__TAURI__?.core?.invoke;
 
+const translations = {
+  en: {
+    "status.loading": "Loading status",
+    "label.account": "Account",
+    "label.device": "Device",
+    "label.agent": "Agent",
+    "label.autostart": "Autostart",
+    "label.commandPermission": "Command Access",
+    "label.diskPermission": "Disk Access",
+    "login.title": "Sign in to your cloud account",
+    "login.description": "Sign in with an email or mobile verification code. The client will register this device and connect to the cloud.",
+    "login.email": "Email",
+    "login.mobile": "Mobile",
+    "login.emailAddress": "Email address",
+    "login.mobileNumber": "Mobile number",
+    "login.code": "Verification code",
+    "login.sendCode": "Send code",
+    "login.sending": "Sending",
+    "login.codeSent": "Verification code sent.",
+    "login.connect": "Sign in and connect",
+    "login.connecting": "Signing in",
+    "login.success": "Signed in. Connecting to the cloud.",
+    "login.logout": "Log out",
+    "login.loggedOut": "Logged out.",
+    "client.title": "Client status",
+    "client.description": "This device is signed in and can receive cloud agent tasks.",
+    "client.start": "Start connection",
+    "client.started": "Connection started.",
+    "server.api": "API URL",
+    "server.ws": "WebSocket URL",
+    "server.save": "Save server URLs",
+    "server.saved": "Server URLs saved.",
+    "server.savedWithDraft": "Server URLs saved. New edits made during saving are still unsaved.",
+    "permission.title": "Startup permission required",
+    "permission.description": "The agent remains stopped until Full Disk Access is granted, preventing permission prompts during a task.",
+    "permission.open": "Open Full Disk Access settings",
+    "permission.waiting": "Agent has not started: {reason}",
+    "permission.required": "Full Disk Access is required",
+    "permission.granted": "Full Disk Access granted",
+    "permission.pending": "Pending",
+    "permission.notRequired": "Not required",
+    "permission.instructions": "Allow iCoding Client under Full Disk Access in System Settings, then restart the app.",
+    "policy.title": "Permission policy",
+    "policy.roots": "Allowed directories",
+    "policy.allowCommands": "Allow command execution",
+    "policy.save": "Save permission policy",
+    "policy.saved": "Permission policy saved.",
+    "policy.savedWithDraft": "Permission policy saved. New edits made during saving are still unsaved.",
+    "status.recent": "Recent status",
+    "status.loggedIn": "Signed in",
+    "status.loggedOut": "Signed out",
+    "status.running": "Running",
+    "status.stopped": "Stopped",
+    "status.enabled": "Enabled",
+    "status.disabled": "Disabled",
+    "status.allowed": "Allowed",
+    "status.denied": "Denied",
+    "bridge.unavailable": "Frontend bridge unavailable",
+    "bridge.error": "Tauri bridge is not available. Check withGlobalTauri in tauri.conf.json.",
+  },
+  zh: {
+    "status.loading": "正在读取状态",
+    "label.account": "账号",
+    "label.device": "设备",
+    "label.agent": "Agent",
+    "label.autostart": "自启",
+    "label.commandPermission": "命令权限",
+    "label.diskPermission": "磁盘权限",
+    "login.title": "登录云端账号",
+    "login.description": "使用邮箱或手机号验证码登录，登录后客户端会注册当前设备并连接云端。",
+    "login.email": "邮箱",
+    "login.mobile": "手机",
+    "login.emailAddress": "邮箱地址",
+    "login.mobileNumber": "手机号",
+    "login.code": "验证码",
+    "login.sendCode": "发送验证码",
+    "login.sending": "发送中",
+    "login.codeSent": "验证码已发送。",
+    "login.connect": "登录并连接",
+    "login.connecting": "登录中",
+    "login.success": "登录成功，正在连接云端。",
+    "login.logout": "退出登录",
+    "login.loggedOut": "已退出登录。",
+    "client.title": "客户端状态",
+    "client.description": "当前设备已登录，可以接收云端智能体任务。",
+    "client.start": "启动连接",
+    "client.started": "连接已启动。",
+    "server.api": "API 地址",
+    "server.ws": "WebSocket 地址",
+    "server.save": "保存服务地址",
+    "server.saved": "服务地址已保存。",
+    "server.savedWithDraft": "服务地址已保存；保存期间的新修改仍未保存。",
+    "permission.title": "启动权限未完成",
+    "permission.description": "Agent 会在完整磁盘访问授权完成前保持停止，避免执行任务途中再次申请权限。",
+    "permission.open": "打开完整磁盘访问设置",
+    "permission.waiting": "Agent 尚未启动：{reason}",
+    "permission.required": "需要完整磁盘访问权限",
+    "permission.granted": "完整磁盘访问已授权",
+    "permission.pending": "待授权",
+    "permission.notRequired": "无需申请",
+    "permission.instructions": "请在系统设置中允许 iCoding Client 完整磁盘访问，然后重新启动应用。",
+    "policy.title": "权限策略",
+    "policy.roots": "允许目录",
+    "policy.allowCommands": "允许执行命令",
+    "policy.save": "保存权限策略",
+    "policy.saved": "权限策略已保存。",
+    "policy.savedWithDraft": "权限策略已保存；保存期间的新修改仍未保存。",
+    "status.recent": "最近状态",
+    "status.loggedIn": "已登录",
+    "status.loggedOut": "未登录",
+    "status.running": "运行中",
+    "status.stopped": "未运行",
+    "status.enabled": "已开启",
+    "status.disabled": "未开启",
+    "status.allowed": "允许",
+    "status.denied": "禁止",
+    "bridge.unavailable": "前端桥接未就绪",
+    "bridge.error": "Tauri 桥接不可用，请检查 tauri.conf.json 中的 withGlobalTauri 配置。",
+  },
+};
+
+const browserLocale = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
+
 const state = {
   loginType: "email",
   sending: false,
@@ -8,9 +131,25 @@ const state = {
   policyDirty: false,
   policyRevision: 0,
   refreshSequence: 0,
+  language: browserLocale.startsWith("zh") ? "zh" : "en",
 };
 
 const $ = (id) => document.getElementById(id);
+
+function t(key, values = {}) {
+  const template = translations[state.language][key] || translations.en[key] || key;
+  return Object.entries(values).reduce(
+    (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
+    template,
+  );
+}
+
+function applyTranslations() {
+  document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+}
 
 function showNotice(message, isError = false) {
   const notice = $("notice");
@@ -27,7 +166,7 @@ function setLoginType(type) {
   state.loginType = type;
   $("emailMode").classList.toggle("active", type === "email");
   $("mobileMode").classList.toggle("active", type === "mobile");
-  $("targetLabel").textContent = type === "email" ? "邮箱地址" : "手机号";
+  $("targetLabel").textContent = type === "email" ? t("login.emailAddress") : t("login.mobileNumber");
   $("targetInput").placeholder = type === "email" ? "test@example.com" : "13800138000";
 }
 
@@ -45,37 +184,34 @@ async function refreshStatus() {
     return;
   }
 
-  $("connectionLabel").textContent = status.logged_in ? "已登录" : "未登录";
+  $("connectionLabel").textContent = status.logged_in ? t("status.loggedIn") : t("status.loggedOut");
   $("accountValue").textContent =
     status.user?.email || status.user?.mobile || status.user?.nicker || "-";
   $("deviceValue").textContent = status.device_id || "-";
-  $("agentValue").textContent = status.agent_running ? "运行中" : "未运行";
-  $("autostartValue").textContent = status.auto_start_enabled ? "已开启" : "未开启";
-  $("shellValue").textContent = status.policy?.shell_exec_enabled ? "允许" : "禁止";
+  $("agentValue").textContent = status.agent_running ? t("status.running") : t("status.stopped");
+  $("autostartValue").textContent = status.auto_start_enabled ? t("status.enabled") : t("status.disabled");
+  $("shellValue").textContent = status.policy?.shell_exec_enabled ? t("status.allowed") : t("status.denied");
   
   const diskAccessRequired = Boolean(status.permissions?.full_disk_access_required);
   const diskAccessGranted = Boolean(status.permissions?.full_disk_access_granted);
   
-  // 更新磁盘权限状态显示
   $("diskAccessValue").textContent = !diskAccessRequired
-    ? "无需申请"
+    ? t("permission.notRequired")
     : diskAccessGranted
-      ? "已授权"
-      : "待授权";
+      ? t("permission.granted")
+      : t("permission.pending");
   
-  // 处理权限提示框的显示逻辑
   const shouldShowPermissionBox = diskAccessRequired && !diskAccessGranted;
   $("permissionBox").classList.toggle("hidden", !shouldShowPermissionBox);
   
-  // 更新权限详情文本
   if (shouldShowPermissionBox) {
-    $("permissionDetail").textContent = `Agent 尚未启动：${status.permissions?.detail || "需要完整磁盘访问权限"}`;
+    $("permissionDetail").textContent = t("permission.waiting", {
+      reason: status.permissions?.detail || t("permission.required"),
+    });
   } else if (diskAccessGranted) {
-    // 权限已授权，但提示框应该被隐藏，这里设置一个默认值
-    $("permissionDetail").textContent = "完整磁盘访问已授权。";
+    $("permissionDetail").textContent = t("permission.granted");
   } else {
-    // 不需要权限的情况
-    $("permissionDetail").textContent = "无需申请完整磁盘访问权限。";
+    $("permissionDetail").textContent = t("permission.notRequired");
   }
   
   if (!state.serverDirty) {
@@ -104,9 +240,10 @@ async function withBusy(button, action) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  applyTranslations();
   if (!invoke) {
-    $("connectionLabel").textContent = "前端桥接未就绪";
-    showNotice("Tauri bridge is not available. Check withGlobalTauri in tauri.conf.json.", true);
+    $("connectionLabel").textContent = t("bridge.unavailable");
+    showNotice(t("bridge.error"), true);
     return;
   }
 
@@ -132,23 +269,23 @@ window.addEventListener("DOMContentLoaded", () => {
   $("sendCodeBtn").addEventListener("click", async () => {
     clearNotice();
     await withBusy($("sendCodeBtn"), async () => {
-      $("sendCodeBtn").textContent = "发送中";
+      $("sendCodeBtn").textContent = t("login.sending");
       await invoke("send_code", { request: targetRequest() });
-      showNotice("验证码已发送");
+      showNotice(t("login.codeSent"));
     }).catch((error) => showNotice(String(error), true));
   });
 
   $("loginBtn").addEventListener("click", async () => {
     clearNotice();
     await withBusy($("loginBtn"), async () => {
-      $("loginBtn").textContent = "登录中";
+      $("loginBtn").textContent = t("login.connecting");
       await invoke("verify_code", {
         request: {
           ...targetRequest(),
           code: $("codeInput").value.trim(),
         },
       });
-      showNotice("登录成功，正在连接云端");
+      showNotice(t("login.success"));
       state.serverDirty = false;
       state.policyDirty = false;
       await refreshStatus();
@@ -167,9 +304,9 @@ window.addEventListener("DOMContentLoaded", () => {
       if (state.serverRevision === revision) {
         state.serverDirty = false;
         await refreshStatus();
-        showNotice("服务地址已保存");
+        showNotice(t("server.saved"));
       } else {
-        showNotice("服务地址已保存；保存期间的新修改仍未保存");
+        showNotice(t("server.savedWithDraft"));
       }
     }).catch((error) => showNotice(String(error), true));
   });
@@ -177,7 +314,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("startAgentBtn").addEventListener("click", async () => {
     clearNotice();
     await invoke("start_agent")
-      .then(() => showNotice("连接已启动"))
+      .then(() => showNotice(t("client.started")))
       .then(refreshStatus)
       .catch((error) => showNotice(String(error), true));
   });
@@ -185,7 +322,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("requestDiskAccessBtn").addEventListener("click", async () => {
     clearNotice();
     await invoke("request_full_disk_access")
-      .then(() => showNotice("请在系统设置中允许 iCoding Client 完整磁盘访问，然后重新启动应用"))
+      .then(() => showNotice(t("permission.instructions")))
       .catch((error) => showNotice(String(error), true));
   });
 
@@ -207,9 +344,9 @@ window.addEventListener("DOMContentLoaded", () => {
       if (state.policyRevision === revision) {
         state.policyDirty = false;
         await refreshStatus();
-        showNotice("权限策略已保存");
+        showNotice(t("policy.saved"));
       } else {
-        showNotice("权限策略已保存；保存期间的新修改仍未保存");
+        showNotice(t("policy.savedWithDraft"));
       }
     }).catch((error) => showNotice(String(error), true));
   });
@@ -217,7 +354,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("logoutBtn").addEventListener("click", async () => {
     clearNotice();
     await invoke("logout")
-      .then(() => showNotice("已退出登录"))
+      .then(() => showNotice(t("login.loggedOut")))
       .then(refreshStatus)
       .catch((error) => showNotice(String(error), true));
   });
