@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>iCoding Client</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="app-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <img class="logo-icon" src="./icon.png" alt="iCoding Client" />
+            <div class="logo-text">
+              <h1>iCoding Client</h1>
+              <span id="connectionLabel" class="connection-status">正在读取状态</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-content">
+          <div class="status-card">
+            <div class="status-item">
+              <span class="status-label">账号</span>
+              <span id="accountValue" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">设备</span>
+              <span id="deviceValue" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Agent</span>
+              <span id="agentValue" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">自启</span>
+              <span id="autostartValue" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">命令权限</span>
+              <span id="shellValue" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">磁盘权限</span>
+              <span id="diskAccessValue" class="status-value">-</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <div id="notice" class="notice hidden"></div>
+
+        <section id="loginPanel" class="panel hidden">
+          <div class="panel-header">
+            <h2>登录云端账号</h2>
+            <p>使用邮箱或手机号验证码登录，登录后客户端会注册当前设备并连接云端。</p>
+          </div>
+
+          <div class="login-method">
+            <div class="method-tabs">
+              <button id="emailMode" class="method-tab active" type="button">邮箱</button>
+              <button id="mobileMode" class="method-tab" type="button">手机</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label id="targetLabel" class="form-label">邮箱地址</label>
+            <input id="targetInput" class="form-input" autocomplete="username" placeholder="test@example.com" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">验证码</label>
+            <div class="code-input-group">
+              <input id="codeInput" class="form-input" autocomplete="one-time-code" placeholder="123456" />
+              <button id="sendCodeBtn" class="btn btn-secondary" type="button">发送验证码</button>
+            </div>
+          </div>
+
+          <button id="loginBtn" class="btn btn-primary btn-block" type="button">登录并连接</button>
+        </section>
+
+        <section id="statusPanel" class="panel hidden">
+          <div class="panel-header">
+            <h2>客户端状态</h2>
+            <p>当前设备已登录，可以接收云端智能体任务。</p>
+          </div>
+
+          <div class="settings-grid">
+            <div class="form-group">
+              <label class="form-label">API 地址</label>
+              <input id="apiBaseUrl" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">WebSocket 地址</label>
+              <input id="wsUrl" class="form-input" />
+            </div>
+          </div>
+
+          <div class="action-buttons">
+            <button id="saveServerBtn" class="btn btn-secondary" type="button">保存服务地址</button>
+            <button id="startAgentBtn" class="btn btn-primary" type="button">启动连接</button>
+            <button id="logoutBtn" class="btn btn-danger" type="button">退出登录</button>
+          </div>
+
+          <div id="permissionBox" class="permission-card hidden">
+            <div class="permission-header">
+              <h3>启动权限未完成</h3>
+              <p id="permissionDetail">
+                Agent 会在完整磁盘访问授权完成前保持停止，避免执行任务途中再次申请权限。
+              </p>
+            </div>
+            <button id="requestDiskAccessBtn" class="btn btn-primary" type="button">
+              打开完整磁盘访问设置
+            </button>
+          </div>
+
+          <div class="policy-card">
+            <div class="policy-header">
+              <h3>权限策略</h3>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">允许目录</label>
+              <textarea
+                id="allowedRoots"
+                class="form-textarea"
+                spellcheck="false"
+                placeholder="/Users/alice/Projects"
+              ></textarea>
+            </div>
+
+            <div class="checkbox-group">
+              <label class="checkbox-item">
+                <input id="shellExecEnabled" type="checkbox" checked />
+                <span class="checkbox-label">允许执行命令</span>
+              </label>
+            </div>
+
+            <button id="savePolicyBtn" class="btn btn-secondary" type="button">保存权限策略</button>
+          </div>
+
+          <div class="log-card">
+            <div class="log-header">
+              <h3>最近状态</h3>
+            </div>
+            <pre id="statusJson" class="log-content">{}</pre>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
