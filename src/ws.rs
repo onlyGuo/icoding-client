@@ -43,7 +43,7 @@ impl AgentWsClient {
         let ws_url = ws_url
             .filter(|url| !url.trim().is_empty())
             .map(|url| resolve_ws_url(&config, &url))
-            .unwrap_or_else(|| config.server.ws_url.clone());
+            .unwrap_or_else(|| resolve_ws_url(&config, &config.server.ws_url));
         let dispatcher = CapabilityDispatcher::new(config.clone());
         Self {
             config,
@@ -265,17 +265,15 @@ impl AgentWsClient {
 fn resolve_ws_url(config: &AppConfig, candidate: &str) -> String {
     let candidate = candidate.trim();
     if candidate.contains("://") {
-        return candidate.to_string();
+        return normalize_ws_url(candidate);
     }
 
-    if candidate.starts_with('/') {
+    let resolved = if candidate.starts_with('/') {
         if let Ok(mut base) = Url::parse(&config.server.ws_url) {
             base.set_path(candidate);
             base.set_query(None);
-            return base.to_string();
-        }
-
-        if let Ok(mut base) = Url::parse(&config.server.api_base_url) {
+            base.to_string()
+        } else if let Ok(mut base) = Url::parse(&config.server.api_base_url) {
             let scheme = match base.scheme() {
                 "https" => "wss",
                 _ => "ws",
@@ -283,11 +281,40 @@ fn resolve_ws_url(config: &AppConfig, candidate: &str) -> String {
             let _ = base.set_scheme(scheme);
             base.set_path(candidate);
             base.set_query(None);
-            return base.to_string();
+            base.to_string()
+        } else {
+            candidate.to_string()
         }
+    } else {
+        candidate.to_string()
+    };
+
+    normalize_ws_url(&resolved)
+}
+
+fn normalize_ws_url(raw: &str) -> String {
+    let Ok(mut url) = Url::parse(raw) else {
+        return raw.to_string();
+    };
+
+    match url.scheme() {
+        "http" => {
+            let _ = url.set_scheme("ws");
+        }
+        "https" => {
+            let _ = url.set_scheme("wss");
+        }
+        "ws" if url.port_or_known_default() == Some(443) => {
+            let _ = url.set_scheme("wss");
+        }
+        _ => {}
     }
 
-    candidate.to_string()
+    if url.scheme() == "wss" && url.port() == Some(443) {
+        let _ = url.set_port(None);
+    }
+
+    url.to_string()
 }
 
 pub async fn send_goodbye(config: AppConfig, session: Session, reason: &str) -> Result<()> {
@@ -309,4 +336,34 @@ where
     let raw = serde_json::to_string(envelope).context("failed to serialize websocket message")?;
     write.send(Message::Text(raw.into())).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_ws_on_443_to_secure_websocket() {
+        assert_eq!(
+            normalize_ws_url("ws://apilite.icoding.ink:443/api/v1/agent/ws"),
+            "wss://apilite.icoding.ink/api/v1/agent/ws"
+        );
+    }
+
+    #[test]
+    fn normalizes_https_websocket_url_to_wss() {
+        assert_eq!(
+            normalize_ws_url("https://apilite.icoding.ink/api/v1/agent/ws"),
+            "wss://apilite.icoding.ink/api/v1/agent/ws"
+        );
+    }
+
+    #[test]
+    fn resolves_relative_websocket_path_against_secure_default() {
+        let config = AppConfig::default();
+        assert_eq!(
+            resolve_ws_url(&config, "/api/v1/agent/ws"),
+            "wss://apilite.icoding.ink/api/v1/agent/ws"
+        );
+    }
 }
