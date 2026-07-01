@@ -80,10 +80,7 @@ struct VerifyCodeRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ServerConfigRequest {
-    api_base_url: String,
-    ws_url: String,
-}
+struct ServerConfigRequest {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -181,11 +178,10 @@ fn request_full_disk_access() -> Result<(), String> {
 #[tauri::command]
 async fn update_server_config(
     state: State<'_, DesktopState>,
-    request: ServerConfigRequest,
+    _request: ServerConfigRequest,
 ) -> Result<(), String> {
     let mut config = state.config.lock().map_err(display_error)?;
-    config.server.api_base_url = request.api_base_url.trim_end_matches('/').to_string();
-    config.server.ws_url = request.ws_url;
+    config.reset_server_endpoints();
     config.save(&state.paths).map_err(display_error)
 }
 

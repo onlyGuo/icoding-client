@@ -8,8 +8,6 @@ use std::{
 
 const DEFAULT_API_BASE_URL: &str = "https://apilite.icoding.ink";
 const DEFAULT_WS_URL: &str = "wss://apilite.icoding.ink/api/v1/agent/ws";
-const LEGACY_API_BASE_URL: &str = "https://api.example.com";
-const LEGACY_WS_URL: &str = "wss://api.example.com/api/v1/agent/ws";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -70,14 +68,7 @@ impl AppConfig {
                 config.policy.shell_exec_enabled = true;
                 needs_save = true;
             }
-            if config.server.api_base_url == LEGACY_API_BASE_URL {
-                config.server.api_base_url = DEFAULT_API_BASE_URL.to_string();
-                needs_save = true;
-            }
-            if config.server.ws_url == LEGACY_WS_URL {
-                config.server.ws_url = DEFAULT_WS_URL.to_string();
-                needs_save = true;
-            }
+            needs_save |= config.normalize_server_endpoints();
             if config.client.device_id.trim().is_empty() {
                 config.client.device_id = new_device_id();
                 needs_save = true;
@@ -101,13 +92,29 @@ impl AppConfig {
         Ok(())
     }
 
-    pub fn apply_server_override(&mut self, api_base_url: Option<String>, ws_url: Option<String>) {
-        if let Some(api_base_url) = api_base_url {
-            self.server.api_base_url = api_base_url.trim_end_matches('/').to_string();
+    pub fn reset_server_endpoints(&mut self) {
+        self.server.api_base_url = DEFAULT_API_BASE_URL.to_string();
+        self.server.ws_url = DEFAULT_WS_URL.to_string();
+    }
+
+    pub fn normalize_server_endpoints(&mut self) -> bool {
+        let api_base_url = self.server.api_base_url.trim().trim_end_matches('/');
+        let ws_url = self.server.ws_url.trim();
+
+        if api_base_url == DEFAULT_API_BASE_URL && ws_url == DEFAULT_WS_URL {
+            return false;
         }
-        if let Some(ws_url) = ws_url {
-            self.server.ws_url = ws_url;
-        }
+
+        self.reset_server_endpoints();
+        true
+    }
+
+    pub fn apply_server_override(
+        &mut self,
+        _api_base_url: Option<String>,
+        _ws_url: Option<String>,
+    ) {
+        self.reset_server_endpoints();
     }
 }
 
@@ -281,12 +288,12 @@ mod tests {
     }
 
     #[test]
-    fn placeholder_server_addresses_are_migrated() -> Result<()> {
+    fn non_default_server_addresses_are_migrated_to_icoding_lite() -> Result<()> {
         let paths = test_paths();
         paths.ensure()?;
         let mut config = AppConfig::default();
-        config.server.api_base_url = LEGACY_API_BASE_URL.to_string();
-        config.server.ws_url = LEGACY_WS_URL.to_string();
+        config.server.api_base_url = "https://old-api.example.test".to_string();
+        config.server.ws_url = "wss://old-api.example.test/api/v1/agent/ws".to_string();
         fs::write(&paths.config_file, toml::to_string_pretty(&config)?)?;
 
         let migrated = AppConfig::load_or_create(&paths)?;

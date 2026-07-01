@@ -182,6 +182,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
           mkdir -p release-assets
@@ -198,8 +199,8 @@ jobs:
             exit 1
           fi
 
-          if ! gh release view "${TAG_NAME}" >/dev/null 2>&1; then
-            gh release create "${TAG_NAME}" --title "${TAG_NAME}" --generate-notes
+          if ! gh release view "${TAG_NAME}" --repo "${GH_REPO}" >/dev/null 2>&1; then
+            gh release create "${TAG_NAME}" --repo "${GH_REPO}" --title "${TAG_NAME}" --generate-notes
           fi
 
-          gh release upload "${TAG_NAME}" release-assets/* --clobber
+          gh release upload "${TAG_NAME}" release-assets/* --repo "${GH_REPO}" --clobber
