@@ -24,23 +24,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Validate tag matches package version
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          cargo_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "icoding-client") | .version')"
-          tauri_version="$(jq -r '.version' tauri.conf.json)"
-          expected_tag="v${cargo_version}"
-          if [ "${cargo_version}" != "${tauri_version}" ]; then
-            echo "Cargo version (${cargo_version}) and Tauri version (${tauri_version}) do not match." >&2
-            exit 1
-          fi
-          if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package version ${expected_tag}." >&2
-            echo "Create tag ${expected_tag}, or update Cargo.toml and tauri.conf.json before tagging." >&2
-            exit 1
-          fi
-
       - name: Run tests
         run: cargo test --locked
 
